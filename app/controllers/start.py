@@ -1,19 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.database.db_handler import save_user_to_db, SessionLocal
+
+
 class StartController:
 	async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-		"""
-		Displays a welcome message and lists all available commands.
-		"""
-		if update.message is None:
-			return  # Exit if there's no message to reply to
-		await update.message.reply_text(
-			"Welcome to the Book Retention Bot! Here are the available commands:\n"
-			"/help - Get help and see all commands.\n"
-			"/summary <text> - Get a summary of a short text.\n"
-			"/summary_book - Upload a book file (TXT, EPUB, PDF, FB2) to get chapter-wise summaries."
-		)
+		user = update.effective_user
+		username = user.username or user.first_name
+		db = SessionLocal()  # Use SessionLocal instead of Session
+		save_user_to_db(db, user.id, user.username, user.first_name)
+		await update.message.reply_text(f"Welcome, {username}!")
+		db.close()
 
 	async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		"""

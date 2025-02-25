@@ -1,36 +1,22 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.database.db_handler import DBHandler
+from telegram import Bot
+from constants.constants import TELEGRAM_BOT_TOKEN
 
-class RemindersService:
-    def __init__(self, db_handler):
-        """
-        Initializes the RemindersService with a database handler.
-        """
-        self.scheduler = BackgroundScheduler()
-        self.db_handler = db_handler
+scheduler = BackgroundScheduler()
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
-    def schedule_reminder(self, user_id, message, delay):
-        """
-        Schedules a reminder and saves it to the database.
-        """
-        job = self.scheduler.add_job(
-            self.send_reminder,
-            'interval',
-            days=delay,
-            args=[user_id, message]
-        )
+def schedule_reminder(chat_id, summary, intervals=[1, 3, 7, 30]):
+    """
+    Schedules spaced repetition reminders.
+    """
+    for interval in intervals:
+        scheduler.add_job(send_reminder, 'interval', days=interval, args=[chat_id, summary])
 
-        # Save the reminder to the database
-        self.db_handler.save_reminder(user_id=user_id, message=message, delay=delay, job_id=job.id)
+def send_reminder(chat_id, summary):
+    """
+    Sends a reminder message via Telegram.
+    """
+    bot.send_message(chat_id=chat_id, text=f"Reminder: {summary}")
 
-    def send_reminder(self, user_id, message):
-        """
-        Sends a reminder message to the user.
-        """
-        print(f"Reminder for user {user_id}: {message}")
-
-    def start(self):
-        """
-        Starts the scheduler.
-        """
-        self.scheduler.start()
+# Start the scheduler
+scheduler.start()

@@ -1,3 +1,4 @@
+# constants/constants.py
 import os
 from dotenv import load_dotenv
 
@@ -13,6 +14,7 @@ ERROR_MESSAGES = {
 	"FILE_TOO_LARGE": "Files larger than 2GB are not supported.",
 	"INVALID_FILE_TYPE": "Unsupported file type. Please upload PDF, EPUB, or FB2 files.",
 	"API_ERROR": "An error occurred while processing your request. Please try again later.",
+	"INVALID_INPUT": "Input too short to summarize.",
 }
 
 LOGGING_CONFIG = {
@@ -21,5 +23,5 @@ LOGGING_CONFIG = {
 }
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GENAI_API_KEY = os.getenv("GENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")

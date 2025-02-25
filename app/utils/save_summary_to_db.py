@@ -1,10 +1,12 @@
-from app.database.db_handler import SummaryModel
+from sqlalchemy.orm import Session
+from app.models.summary_model import Summary
 
-def save_summary_to_db(db_handler, user_id, summary_type, summary):
+def save_summary_to_db(db: Session, user_id: str, original_text: str, summary: str):
 	"""
-	Saves the summary to the database.
+	Saves summary to the database.
 	"""
-	try:
-		db_handler.save_summary(user_id=user_id, summary_type=summary_type, summary=summary)
-	except Exception as e:
-		raise RuntimeError(f"Failed to save summary to the database: {e}") from e
+	db_summary = Summary(user_id=user_id, original_text=original_text, summary=summary)
+	db.add(db_summary)
+	db.commit()
+	db.refresh(db_summary)
+	return db_summary
