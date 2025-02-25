@@ -1,8 +1,16 @@
-# constants/constants.py
+# constants/constants.py - UPDATED
 import os
 from dotenv import load_dotenv
+import logging
 
-load_dotenv()  # Load environment variables from .env
+# Load environment variables from .env
+load_dotenv()
+
+# Configure logging before anything else
+logging.basicConfig(
+	level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
+	format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 BOT_COMMANDS = {
 	"START": "/start",
@@ -22,6 +30,13 @@ LOGGING_CONFIG = {
 	"LOG_LEVEL": os.getenv("LOG_LEVEL", "INFO"),
 }
 
+# Bot and API tokens
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GENAI_API_KEY = os.getenv("GENAI_API_KEY")
+GENAI_API_KEY = os.getenv("GOOGLE_API_KEY")  # Changed to match .env file
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Log configuration
+logging.info(f"Database URL: {DATABASE_URL}")
+logging.info(f"Logging level: {os.getenv('LOG_LEVEL', 'INFO')}")
+logging.info(f"Google API key set: {'Yes' if GENAI_API_KEY else 'No'}")
+logging.info(f"Telegram token set: {'Yes' if TELEGRAM_BOT_TOKEN else 'No'}")

@@ -1,4 +1,4 @@
-# app/database/db_handler.py
+# app/database/db_handler.py - UPDATED
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float, desc, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -22,7 +22,7 @@ class User(Base):
     user_id = Column(String, nullable=False, unique=True, index=True)  # Telegram user ID
     username = Column(String)  # Telegram username
     first_name = Column(String)  # First name of the user
-    # created_at may exist in some database versions but not others
+    created_at = Column(DateTime, default=datetime.utcnow)  # Added created_at field
 
 # Define the Message model
 class Message(Base):
@@ -41,6 +41,7 @@ class Summary(Base):
     original_text = Column(Text, nullable=False)
     summary = Column(Text, nullable=False)
     book_id = Column(Integer, nullable=True)  # Foreign key to books.id
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 # New model for books
 class Book(Base):
@@ -86,54 +87,68 @@ class Quiz(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     answered_at = Column(DateTime, nullable=True)
 
-# Create tables - we'll handle this carefully to not disturb existing tables
+# Create tables - force create all tables at startup
 def create_tables():
     """
-    Safely create tables without dropping existing ones
+    Create all tables if they don't exist
     """
     try:
-        inspector = inspect(engine)
-
-        # Check if tables exist and create them if they don't
-        if not "books" in inspector.get_table_names():
-            Book.__table__.create(engine)
-            logging.info("Created books table")
-
-        if not "user_books" in inspector.get_table_names():
-            UserBook.__table__.create(engine)
-            logging.info("Created user_books table")
-
-        if not "reminders" in inspector.get_table_names():
-            Reminder.__table__.create(engine)
-            logging.info("Created reminders table")
-
-        if not "quizzes" in inspector.get_table_names():
-            Quiz.__table__.create(engine)
-            logging.info("Created quizzes table")
-
-        logging.info("Database tables checked/created successfully")
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        logging.info("Database tables created successfully")
     except Exception as e:
         logging.error(f"Error creating tables: {str(e)}")
 
 # Function to save user metadata
 def save_user_to_db(db, user_id, username, first_name):
+    """
+    Safely saves a user to the database, handling any potential errors.
+
+    Args:
+        db: Database session
+        user_id: Telegram user ID
+        username: Telegram username
+        first_name: User's first name
+
+    Returns:
+        The user object if successful
+    """
     try:
-        db_user = db.query(User).filter(User.user_id == str(user_id)).first()
-        if not db_user:
-            db_user = User(
-                user_id=str(user_id),
-                username=username,
-                first_name=first_name
-            )
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
+        # First check if the user exists
+        logging.info(f"Checking if user {user_id} exists in database")
+        try:
+            db_user = db.query(User).filter(User.user_id == str(user_id)).first()
+            if db_user:
+                logging.info(f"User {user_id} already exists in database")
+                return db_user
+        except Exception as e:
+            logging.error(f"Error querying for user: {str(e)}")
+            # Continue to creation attempt
+
+        # If we get here, either the user doesn't exist or there was an error querying
+        logging.info(f"Creating new user: {user_id}, {username}, {first_name}")
+
+        # Create the user object
+        db_user = User(
+            user_id=str(user_id),
+            username=username,
+            first_name=first_name
+        )
+
+        # Add to session and commit
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        logging.info(f"Successfully created user {user_id}")
+
         return db_user
     except Exception as e:
         db.rollback()
         logging.error(f"Error saving user: {str(e)}")
-        raise
+        # Don't raise the exception, we want to continue execution
+        return None
 
+# Rest of the functions remain the same...
 # Function to save a message
 def save_message_to_db(db, user_id, message_text):
     db_message = Message(user_id=str(user_id), message_text=message_text)
@@ -157,7 +172,6 @@ def save_summary_to_db(db, user_id, title, original_text, summary, book_id=None)
     return db_summary
 
 # New functions for book management
-
 def get_recommended_books(db):
     """
     Retrieves the list of curated recommended books.
@@ -385,15 +399,10 @@ def initialize_recommended_books(db):
     """
     try:
         # Check if we already have recommended books
-        try:
-            existing_count = db.query(Book).filter(Book.is_recommended == True).count()
-            if existing_count > 0:
-                logging.info(f"Found {existing_count} existing recommended books, skipping initialization")
-                return
-        except Exception as e:
-            # Table might not exist yet, continue with initialization
-            logging.warning(f"Error checking for existing books, will attempt to create: {str(e)}")
-            create_tables()
+        existing_count = db.query(Book).filter(Book.is_recommended == True).count()
+        if existing_count > 0:
+            logging.info(f"Found {existing_count} existing recommended books, skipping initialization")
+            return
 
         recommended_books = [
             {
@@ -440,8 +449,5 @@ def initialize_recommended_books(db):
         db.rollback()
         logging.error(f"Error initializing recommended books: {str(e)}")
 
-# Create the tables
-try:
-    create_tables()
-except Exception as e:
-    logging.error(f"Error during table creation: {str(e)}")
+# Create the tables at import time to ensure they exist before any operations
+create_tables()

@@ -1,4 +1,4 @@
-# app/database/init_db.py
+# app/database/init_db.py - UPDATED
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from app.database.db_handler import SessionLocal, initialize_recommended_books, create_tables

@@ -1,4 +1,4 @@
-# app/controllers/book_selection.py
+# app/controllers/book_selection.py - FIXED
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -21,10 +21,16 @@ class BookSelectionController:
 			books = get_recommended_books(db)
 
 			if not books or len(books) == 0:
-				await update.message.reply_text(
-					"Sorry, I don't have any recommended books at the moment. "
-					"You can add your own book using /addbook."
-				)
+				if update.callback_query:
+					await update.callback_query.edit_message_text(
+						"Sorry, I don't have any recommended books at the moment. "
+						"You can add your own book using /addbook."
+					)
+				else:
+					await update.message.reply_text(
+						"Sorry, I don't have any recommended books at the moment. "
+						"You can add your own book using /addbook."
+					)
 				return
 
 			# Create an inline keyboard with book options
@@ -37,13 +43,23 @@ class BookSelectionController:
 
 			reply_markup = InlineKeyboardMarkup(keyboard)
 
-			await update.message.reply_text(
-				"Choose a book to study using spaced repetition:",
-				reply_markup=reply_markup
-			)
+			message_text = "Choose a book to study using spaced repetition:"
+
+			# Handle the different update contexts (direct command vs callback)
+			if update.callback_query:
+				await update.callback_query.edit_message_text(
+					text=message_text,
+					reply_markup=reply_markup
+				)
+			else:
+				await update.message.reply_text(
+					text=message_text,
+					reply_markup=reply_markup
+				)
+
 		except Exception as e:
 			logging.error(f"Error in select_book: {str(e)}")
-			await update.message.reply_text("Sorry, there was an error fetching the book list.")
+			self._send_error_message(update, "Sorry, there was an error fetching the book list.")
 		finally:
 			db.close()
 
@@ -75,8 +91,6 @@ class BookSelectionController:
 					f"Great choice! You've selected '{book.title}'. "
 					f"I'll send you a summary soon, followed by reminders to help you remember the key concepts."
 				)
-
-				# Note: We could trigger summary generation here in the future
 
 			except Exception as e:
 				logging.error(f"Error in handle_book_selection: {str(e)}")
@@ -170,3 +184,13 @@ class BookSelectionController:
 				await update.message.reply_text("Sorry, there was an error adding your book.")
 			finally:
 				db.close()
+
+	def _send_error_message(self, update, text):
+		"""Helper method to send error messages in either context"""
+		try:
+			if update.callback_query:
+				update.callback_query.edit_message_text(text)
+			else:
+				update.message.reply_text(text)
+		except Exception as e:
+			logging.error(f"Failed to send error message: {str(e)}")
