@@ -1,3 +1,4 @@
+# app/controllers/book_selection.py
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -77,6 +78,41 @@ class BookSelectionController:
 			)
 			# Store that we're waiting for a book title
 			context.user_data["awaiting_book_title"] = True
+
+	async def add_custom_book_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		"""
+		Handler for the /addbook command
+		"""
+		await update.message.reply_text(
+			"Please send me the title of the book you want to add. "
+			"Just type the title and send it as a message."
+		)
+		# Store that we're waiting for a book title
+		context.user_data["awaiting_book_title"] = True
+
+	async def handle_text_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+		"""
+		Handles text input based on the current context
+		"""
+		user_id = update.effective_user.id
+		message_text = update.message.text
+
+		# Check the current context
+		if context.user_data.get("awaiting_book_title"):
+			# User is adding a custom book
+			await self.add_custom_book(update, context)
+		elif context.user_data.get("awaiting_quiz_answer"):
+			# User is answering a quiz
+			from app.controllers.quiz import handle_quiz_answer
+			await handle_quiz_answer(update, context)
+		elif context.user_data.get("awaiting_teaching"):
+			# User is providing a teaching explanation
+			from app.controllers.teaching import handle_teaching_response
+			await handle_teaching_response(update, context)
+		else:
+			# Default behavior - summarize the text
+			from app.controllers.summary_text import summarize_text_command
+			await summarize_text_command(update, context)
 
 	async def add_custom_book(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		"""

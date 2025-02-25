@@ -16,12 +16,24 @@ async def schedule_spaced_repetition(context, user_id, book_title):
     """
     Schedules spaced repetition reminders for a book.
     """
-    # Get book_id from context.chat_data or from DB
+    # Get book_id from context or look it up in the DB
     book_id = context.chat_data.get("current_book_id")
 
     if not book_id:
-        logging.error(f"No book_id found for user {user_id} and book {book_title}")
-        return
+        # Try to look up the book ID by title
+        db = SessionLocal()
+        try:
+            book = db.query("Book").filter("Book.title" == book_title).first()
+            if book:
+                book_id = book.id
+            else:
+                logging.error(f"No book found with title {book_title}")
+                return
+        except Exception as e:
+            logging.error(f"Error looking up book: {str(e)}")
+            return
+        finally:
+            db.close()
 
     # Define intervals for spaced repetition (in days)
     intervals = {
