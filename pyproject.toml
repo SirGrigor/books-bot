@@ -1,14 +1,27 @@
+# pyproject.toml
 [tool.poetry]
-name = "books-bot"
+name = "book-retention-bot"
 version = "0.1.0"
-description = ""
-authors = ["sirGrigor <grigorjev.ilja@gmail.com>"]
-readme = "README.md"
+description = "A Telegram bot that helps users retain key insights from books using AI and spaced repetition."
+authors = ["Your Name <your.email@example.com>"]
+packages = [
+    { include = "app" },  # Include the 'app' directory as part of the package
+]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-
+python = "^3.9"
+python-dotenv = "1.0.0"  # For loading environment variables
+python-telegram-bot = "21.10"  # Telegram bot framework
+google-generativeai = "0.8.4"  # For AI-based summarization
+transformers = "^4.30.2"  # For advanced NLP tasks
+pandas = "^1.5.3"  # For data manipulation
+sqlalchemy = "^1.4.46"  # For database interactions
+apscheduler = "^3.10.1"  # For scheduling reminders
+EbookLib = "^0.18"  # For processing EPUB files
+PyPDF2 = "^3.0.1"  # For processing PDF files
+lxml = "^5.0.0"  # For processing FB2 files
+genai = "^0.1.0"  # For AI-based summarization
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

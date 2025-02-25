@@ -8,7 +8,6 @@ class StartController:
 		"""
 		if update.message is None:
 			return  # Exit if there's no message to reply to
-
 		await update.message.reply_text(
 			"Welcome to the Book Retention Bot! Here are the available commands:\n"
 			"/help - Get help and see all commands.\n"
@@ -22,7 +21,6 @@ class StartController:
 		"""
 		if update.message is None:
 			return  # Exit if there's no message to reply to
-
 		await update.message.reply_text(
 			"Available commands:\n"
 			"/summary <text> - Get a summary of a short text.\n"
