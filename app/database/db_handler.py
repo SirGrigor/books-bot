@@ -206,9 +206,103 @@ def get_recommended_books(db):
         logging.error(f"Error getting recommended books: {str(e)}")
         return []
 
-def add_custom_book_to_db(db, title, user_id, author=None, description=None):
+def get_books_by_category(db, category, limit=10, offset=0):
     """
-    Adds a custom book to the database.
+    Retrieves books filtered by category with pagination.
+    """
+    try:
+        if category:
+            books = db.query(Book).filter(Book.category == category).offset(offset).limit(limit).all()
+        else:
+            books = db.query(Book).offset(offset).limit(limit).all()
+        return books
+    except Exception as e:
+        logging.error(f"Error getting books by category: {str(e)}")
+        return []
+
+# New function to search books
+def search_books(db, query_text, limit=10):
+    """
+    Searches for books by title or author.
+    """
+    try:
+        books = db.query(Book).filter(
+            (Book.title.ilike(f"%{query_text}%")) |
+            (Book.author.ilike(f"%{query_text}%"))
+        ).limit(limit).all()
+        return books
+    except Exception as e:
+        logging.error(f"Error searching books: {str(e)}")
+        return []
+
+# New function to get book categories
+def get_book_categories(db):
+    """
+    Retrieves all unique book categories from the database.
+    """
+    try:
+        # This is a more efficient query that returns just the unique categories
+        categories = db.query(Book.category).filter(Book.category != None).distinct().all()
+        return [cat[0] for cat in categories if cat[0]]  # Extract category strings from result tuples
+    except Exception as e:
+        logging.error(f"Error getting book categories: {str(e)}")
+        return []
+
+# New function to batch import books
+def batch_import_books(db, books_data, user_id):
+    """
+    Imports multiple books at once.
+
+    books_data: List of dictionaries with book data (title, author, category)
+    user_id: User ID to associate books with
+
+    Returns: tuple(added_books, skipped_books)
+    """
+    added_books = []
+    skipped_books = []
+
+    try:
+        for book_data in books_data:
+            title = book_data.get("title")
+            if not title:
+                skipped_books.append("(Empty title)")
+                continue
+
+            try:
+                # Add the book
+                book = add_custom_book_to_db(
+                    db,
+                    title,
+                    user_id,
+                    author=book_data.get("author"),
+                    category=book_data.get("category"),
+                    description=book_data.get("description"),
+                    tags=book_data.get("tags")
+                )
+
+                # Add to the list of successfully added books
+                book_info = f"{title}"
+                if book_data.get("author"):
+                    book_info += f" by {book_data.get('author')}"
+                added_books.append(book_info)
+
+            except Exception as e:
+                # Add to the list of skipped books on error
+                book_info = f"{title}"
+                if book_data.get("author"):
+                    book_info += f" by {book_data.get('author')}"
+                skipped_books.append(book_info)
+                logging.error(f"Error importing book '{title}': {str(e)}")
+
+        return added_books, skipped_books
+
+    except Exception as e:
+        logging.error(f"Error in batch import: {str(e)}")
+        return added_books, skipped_books
+
+def add_custom_book_to_db(db, title, user_id, author=None, description=None, category=None, tags=None):
+    """
+    Adds a custom book to the database with expanded metadata.
     """
     try:
         # Check if book already exists
@@ -216,13 +310,25 @@ def add_custom_book_to_db(db, title, user_id, author=None, description=None):
 
         if existing_book:
             book = existing_book
+            # Update book info if new fields are provided
+            if author and not book.author:
+                book.author = author
+            if description and not book.description:
+                book.description = description
+            if category and not book.category:
+                book.category = category
+            if tags and not book.tags:
+                book.tags = tags
+            db.commit()
         else:
             # Create new book
             book = Book(
                 title=title,
                 author=author,
                 description=description,
-                is_recommended=False
+                is_recommended=False,
+                category=category,
+                tags=tags
             )
             db.add(book)
             db.commit()
