@@ -1,8 +1,9 @@
 # app/controllers/progress.py
 import logging
-from telegram import Update
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from app.database.db_handler import SessionLocal, get_user_books, get_user_progress
+from app.database.db_handler import SessionLocal, get_user_books, get_user_progress, Book, UserBook
 
 class ProgressController:
 	async def show_progress(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,7 +28,10 @@ class ProgressController:
 			progress_report = "📚 Your Reading Progress 📚\n\n"
 
 			for user_book in user_books:
-				book = user_book.book
+				# Get the book
+				book = db.query(Book).filter(Book.id == user_book.book_id).first()
+				if not book:
+					continue
 
 				# Get the user's progress for this book
 				progress = get_user_progress(db, user_id, book.id)
@@ -41,18 +45,34 @@ class ProgressController:
 						progress_report += f"by {book.author}\n"
 					progress_report += f"Status: {status}\n"
 					progress_report += f"Retention Score: {retention}\n"
-					progress_report += f"Started: {progress.started_at.strftime('%Y-%m-%d')}\n"
 
-					if progress.completed:
+					if hasattr(progress, 'started_at') and progress.started_at:
+						started_date = progress.started_at.strftime('%Y-%m-%d')
+						progress_report += f"Started: {started_date}\n"
+
+					if progress.completed and hasattr(progress, 'completed_at') and progress.completed_at:
 						completed_date = progress.completed_at.strftime('%Y-%m-%d')
 						progress_report += f"Completed: {completed_date}\n"
+
+					# Add a mark as complete button if not completed
+					if not progress.completed:
+						# Create a keyboard to mark as complete
+						keyboard = [[InlineKeyboardButton(
+							"Mark as Completed",
+							callback_data=f"complete_book_{book.id}"
+						)]]
 
 					progress_report += "\n"
 
 			# Add some encouragement
 			progress_report += "Keep up the great work! Regular reviews will help you retain what you've learned. 🧠"
 
-			await update.message.reply_text(progress_report, parse_mode='Markdown')
+			# Check if we should show a keyboard
+			if not progress.completed:
+				reply_markup = InlineKeyboardMarkup(keyboard)
+				await update.message.reply_text(progress_report, parse_mode='Markdown', reply_markup=reply_markup)
+			else:
+				await update.message.reply_text(progress_report, parse_mode='Markdown')
 
 		except Exception as e:
 			logging.error(f"Error in show_progress: {str(e)}")
@@ -74,22 +94,25 @@ class ProgressController:
 			db = SessionLocal()
 			try:
 				# Get the user-book relationship
-				user_book = db.query("UserBook").filter(
-					"UserBook.user_id" == user_id,
-					"UserBook.book_id" == book_id
+				user_book = db.query(UserBook).filter(
+					UserBook.user_id == str(user_id),
+					UserBook.book_id == book_id
 				).first()
 
 				if not user_book:
 					await query.edit_message_text("Sorry, I couldn't find this book in your reading list.")
 					return
 
+				# Get the book
+				book = db.query(Book).filter(Book.id == book_id).first()
+				if not book:
+					await query.edit_message_text("Sorry, I couldn't find this book.")
+					return
+
 				# Mark as completed
 				user_book.completed = True
 				user_book.completed_at = datetime.utcnow()
 				db.commit()
-
-				# Get the book title
-				book = db.query("Book").filter("Book.id" == book_id).first()
 
 				await query.edit_message_text(
 					f"🎉 Congratulations on completing '{book.title}'! 🎉\n\n"

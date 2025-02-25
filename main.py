@@ -1,6 +1,5 @@
 import logging
 import os
-from datetime import time
 
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 from app.controllers.start import StartController
@@ -49,7 +48,7 @@ def main():
 	application.add_handler(CommandHandler("teach", teaching_controller.send_teaching_prompt))
 	application.add_handler(CommandHandler("progress", progress_controller.show_progress))
 
-	# Add callback query handler for inline keyboards
+	# Add callback query handlers
 	application.add_handler(CallbackQueryHandler(start_controller.handle_menu_callback, pattern=r"^menu_"))
 	application.add_handler(CallbackQueryHandler(book_selection_controller.handle_book_selection, pattern=r"^book_"))
 	application.add_handler(CallbackQueryHandler(quiz_controller.handle_book_selection, pattern=r"^quiz_book_"))
@@ -57,9 +56,9 @@ def main():
 	application.add_handler(CallbackQueryHandler(progress_controller.mark_book_completed, pattern=r"^complete_book_"))
 
 	# Add message handlers
-	# Only parse non-command text messages for summarizing when not in a specific context
+	# Fixed: removing the problematic UpdateType.CALLBACK_QUERY reference
 	application.add_handler(MessageHandler(
-		filters.TEXT & ~filters.COMMAND & ~filters.UpdateType.CALLBACK_QUERY,
+		filters.TEXT & ~filters.COMMAND,
 		book_selection_controller.handle_text_input
 	))
 	application.add_handler(MessageHandler(filters.Document.ALL, summarize_book_command))

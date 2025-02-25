@@ -2,7 +2,12 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from app.database.db_handler import save_book_selection_to_db, get_recommended_books, add_custom_book_to_db, SessionLocal
+from app.database.db_handler import (
+	SessionLocal,
+	save_book_selection_to_db,
+	get_recommended_books,
+	add_custom_book_to_db
+)
 from app.services.reminders_service import schedule_spaced_repetition
 
 class BookSelectionController:
@@ -15,13 +20,20 @@ class BookSelectionController:
 			# Get the list of recommended books
 			books = get_recommended_books(db)
 
+			if not books or len(books) == 0:
+				await update.message.reply_text(
+					"Sorry, I don't have any recommended books at the moment. "
+					"You can add your own book using /addbook."
+				)
+				return
+
 			# Create an inline keyboard with book options
 			keyboard = []
 			for book in books:
 				keyboard.append([InlineKeyboardButton(book.title, callback_data=f"book_{book.id}")])
 
 			# Add an option to manually enter a book
-			keyboard.append([InlineKeyboardButton("Add a different book", callback_data="add_custom_book")])
+			keyboard.append([InlineKeyboardButton("Add a different book", callback_data="book_custom")])
 
 			reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -42,7 +54,7 @@ class BookSelectionController:
 		query = update.callback_query
 		await query.answer()
 
-		if query.data.startswith("book_"):
+		if query.data.startswith("book_") and query.data != "book_custom":
 			book_id = int(query.data.split("_")[1])
 			user_id = update.effective_user.id
 
@@ -50,6 +62,11 @@ class BookSelectionController:
 			try:
 				# Save the book selection
 				book = save_book_selection_to_db(db, user_id, book_id)
+
+				# Store book_id in context for reminders
+				if not context.chat_data:
+					context.chat_data = {}
+				context.chat_data["current_book_id"] = book_id
 
 				# Schedule the spaced repetition reminders
 				await schedule_spaced_repetition(context, user_id, book.title)
@@ -59,11 +76,7 @@ class BookSelectionController:
 					f"I'll send you a summary soon, followed by reminders to help you remember the key concepts."
 				)
 
-				# Trigger summary generation (this will be implemented in another controller)
-				context.job_queue.run_once(
-					lambda _: self.send_initial_summary(context, user_id, book_id),
-					when=1  # Send after 1 second
-				)
+				# Note: We could trigger summary generation here in the future
 
 			except Exception as e:
 				logging.error(f"Error in handle_book_selection: {str(e)}")
@@ -71,12 +84,14 @@ class BookSelectionController:
 			finally:
 				db.close()
 
-		elif query.data == "add_custom_book":
+		elif query.data == "book_custom":
 			await query.edit_message_text(
 				"Please send me the title of the book you want to add. "
 				"Just type the title and send it as a message."
 			)
 			# Store that we're waiting for a book title
+			if not context.user_data:
+				context.user_data = {}
 			context.user_data["awaiting_book_title"] = True
 
 	async def add_custom_book_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -88,6 +103,8 @@ class BookSelectionController:
 			"Just type the title and send it as a message."
 		)
 		# Store that we're waiting for a book title
+		if not context.user_data:
+			context.user_data = {}
 		context.user_data["awaiting_book_title"] = True
 
 	async def handle_text_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,12 +114,17 @@ class BookSelectionController:
 		user_id = update.effective_user.id
 		message_text = update.message.text
 
+		# Default user_data if not initialized
+		if not hasattr(context, 'user_data') or context.user_data is None:
+			context.user_data = {}
+
 		# Check the current context
 		if context.user_data.get("awaiting_book_title"):
 			# User is adding a custom book
 			await self.add_custom_book(update, context)
 		elif context.user_data.get("awaiting_quiz_answer"):
 			# User is answering a quiz
+			# We'll import it at runtime to avoid circular imports
 			from app.controllers.quiz import handle_quiz_answer
 			await handle_quiz_answer(update, context)
 		elif context.user_data.get("awaiting_teaching"):
@@ -127,6 +149,11 @@ class BookSelectionController:
 				# Add the custom book to the database
 				book = add_custom_book_to_db(db, book_title, user_id)
 
+				# Store book_id in context for reminders
+				if not context.chat_data:
+					context.chat_data = {}
+				context.chat_data["current_book_id"] = book.id
+
 				# Schedule the spaced repetition reminders
 				await schedule_spaced_repetition(context, user_id, book.title)
 
@@ -138,22 +165,8 @@ class BookSelectionController:
 					f"I'll send you a summary soon, followed by reminders to help you remember the key concepts."
 				)
 
-				# Trigger summary generation
-				context.job_queue.run_once(
-					lambda _: self.send_initial_summary(context, user_id, book.id),
-					when=1  # Send after 1 second
-				)
-
 			except Exception as e:
 				logging.error(f"Error in add_custom_book: {str(e)}")
 				await update.message.reply_text("Sorry, there was an error adding your book.")
 			finally:
 				db.close()
-
-	async def send_initial_summary(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, book_id: int):
-		"""
-		Sends the initial book summary to the user
-		"""
-		# This will be implemented in the SummaryController
-		# For now, we'll just log it
-		logging.info(f"Need to send summary for book {book_id} to user {user_id}")

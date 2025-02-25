@@ -1,7 +1,7 @@
 # app/controllers/start.py
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
 from app.database.db_handler import save_user_to_db, SessionLocal
 
 
@@ -38,7 +38,8 @@ class StartController:
 			await update.message.reply_text(welcome_message, parse_mode='Markdown', reply_markup=reply_markup)
 
 		except Exception as e:
-			await update.message.reply_text(f"An error occurred: {str(e)}")
+			logging.error(f"Error in start command: {str(e)}")
+			await update.message.reply_text(f"Welcome! There was a small issue setting up your profile, but you can still use the bot. Try /help to see available commands.")
 		finally:
 			db.close()
 
@@ -46,48 +47,53 @@ class StartController:
 		"""
 		Displays a help message with all available commands.
 		"""
-		if update.message is None:
-			return  # Exit if there's no message to reply to
+		try:
+			help_text = (
+				"📚 *Book Retention Bot Commands* 📚\n\n"
+				"*Basic Commands:*\n"
+				"/start - Welcome message and introduction\n"
+				"/help - Display this help message\n\n"
 
-		help_text = (
-			"📚 *Book Retention Bot Commands* 📚\n\n"
-			"*Basic Commands:*\n"
-			"/start - Welcome message and introduction\n"
-			"/help - Display this help message\n\n"
+				"*Book Selection:*\n"
+				"/selectbook - Choose from our curated list of books\n"
+				"/addbook - Add a custom book by title\n\n"
 
-			"*Book Selection:*\n"
-			"/selectbook - Choose from our curated list of books\n"
-			"/addbook - Add a custom book by title\n\n"
+				"*Learning Features:*\n"
+				"/summary - Get or view a book summary\n"
+				"/quiz - Test your knowledge with quiz questions\n"
+				"/teach - Practice explaining concepts in your own words\n"
+				"/progress - View your reading and retention statistics\n\n"
 
-			"*Learning Features:*\n"
-			"/summary - Get or view a book summary\n"
-			"/quiz - Test your knowledge with quiz questions\n"
-			"/teach - Practice explaining concepts in your own words\n"
-			"/progress - View your reading and retention statistics\n\n"
+				"*How to Use:*\n"
+				"1. Start by selecting a book with /selectbook\n"
+				"2. Read the AI-generated summary\n"
+				"3. The bot will automatically send you reminders at optimal intervals\n"
+				"4. Use /quiz and /teach to actively reinforce your learning\n"
+				"5. Track your progress with /progress\n\n"
 
-			"*How to Use:*\n"
-			"1. Start by selecting a book with /selectbook\n"
-			"2. Read the AI-generated summary\n"
-			"3. The bot will automatically send you reminders at optimal intervals\n"
-			"4. Use /quiz and /teach to actively reinforce your learning\n"
-			"5. Track your progress with /progress\n\n"
+				"Remember: Active engagement with the material helps retention!"
+			)
 
-			"Remember: Active engagement with the material helps retention!"
-		)
-
-		await update.message.reply_text(help_text, parse_mode='Markdown')
+			await update.message.reply_text(help_text, parse_mode='Markdown')
+		except Exception as e:
+			logging.error(f"Error in help command: {str(e)}")
+			await update.message.reply_text("Sorry, there was an error displaying the help message.")
 
 	async def handle_menu_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		"""
 		Handles callbacks from the welcome menu
 		"""
-		query = update.callback_query
-		await query.answer()
+		try:
+			query = update.callback_query
+			await query.answer()
 
-		if query.data == "menu_select_book":
-			# Call the select_book method from BookSelectionController
-			from app.controllers.book_selection import BookSelectionController
-			book_controller = BookSelectionController()
-			await book_controller.select_book(update, context)
-		elif query.data == "menu_help":
-			await self.help(update, context)
+			if query.data == "menu_select_book":
+				# Call the select_book method from BookSelectionController
+				from app.controllers.book_selection import BookSelectionController
+				book_controller = BookSelectionController()
+				await book_controller.select_book(update, context)
+			elif query.data == "menu_help":
+				await self.help(update, context)
+		except Exception as e:
+			logging.error(f"Error handling menu callback: {str(e)}")
+			await update.callback_query.edit_message_text("Sorry, there was an error processing your selection. Please try using the command directly.")

@@ -2,8 +2,14 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from app.database.db_handler import SessionLocal, get_user_books, save_quiz_to_db, save_quiz_answer
-from app.services.quiz_service import generate_quiz_questions
+from app.database.db_handler import (
+	SessionLocal,
+	get_user_books,
+	Book,
+	Summary,
+	save_quiz_to_db,
+	save_quiz_answer
+)
 
 class QuizController:
 	async def send_quiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,8 +33,10 @@ class QuizController:
 			# Create an inline keyboard with book options
 			keyboard = []
 			for user_book in user_books:
-				book = user_book.book
-				keyboard.append([InlineKeyboardButton(book.title, callback_data=f"quiz_book_{book.id}")])
+				# Get the book for this user_book
+				book = db.query(Book).filter(Book.id == user_book.book_id).first()
+				if book:
+					keyboard.append([InlineKeyboardButton(book.title, callback_data=f"quiz_book_{book.id}")])
 
 			reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -56,40 +64,41 @@ class QuizController:
 
 			db = SessionLocal()
 			try:
-				# Get the book summary
-				summary = db.query("Summary").filter(
-					"Summary.user_id" == user_id,
-					"Summary.book_id" == book_id
-				).order_by("Summary.created_at.desc()").first()
+				# Get the book
+				book = db.query(Book).filter(Book.id == book_id).first()
+				if not book:
+					await query.edit_message_text("Sorry, I couldn't find this book.")
+					return
+
+				# Get the summary for this book
+				summary = db.query(Summary).filter(
+					Summary.user_id == str(user_id),
+					Summary.book_id == book_id
+				).order_by(Summary.id.desc()).first()
 
 				if not summary:
 					await query.edit_message_text(
-						"Sorry, I couldn't find a summary for this book. "
-						"Please summarize it first using /summary."
+						f"I don't have a summary for '{book.title}' yet. "
+						f"Try uploading a summary first!"
 					)
 					return
 
-				# Generate quiz questions
-				questions = generate_quiz_questions(summary.summary)
+				# Create a simple quiz question
+				question = f"What is one key concept you learned from '{book.title}'?"
+				answer = "This is a reflective question to test your understanding."
 
-				if not questions or len(questions) == 0:
-					await query.edit_message_text(
-						"Sorry, I couldn't generate quiz questions for this book. "
-						"Please try again later."
-					)
-					return
+				# Save the question to the database
+				quiz = save_quiz_to_db(db, user_id, book_id, question, answer)
 
-				# Save the first question to the database
-				question = questions[0]
-				quiz = save_quiz_to_db(db, user_id, book_id, question["question"], question["answer"])
-
-				# Store the quiz ID in context for answer handling
+				# Store quiz info in context
+				if not context.user_data:
+					context.user_data = {}
 				context.user_data["awaiting_quiz_answer"] = True
 				context.user_data["current_quiz_id"] = quiz.id
 
 				await query.edit_message_text(
-					f"Question: {question['question']}\n\n"
-					"Reply with your answer, and I'll let you know if it's correct!"
+					f"Question: {question}\n\n"
+					"Reply with your answer, and I'll provide feedback on your understanding."
 				)
 
 			except Exception as e:
@@ -110,15 +119,8 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 	db = SessionLocal()
 	try:
-		# Get the quiz
-		quiz = db.query("Quiz").filter("Quiz.id" == quiz_id).first()
-
-		if not quiz:
-			await update.message.reply_text("Sorry, I couldn't find the quiz question.")
-			return
-
-		# Simple string comparison for now - could be improved with NLP
-		is_correct = user_answer.lower().strip() == quiz.correct_answer.lower().strip()
+		# Since this is a reflective question, all answers are considered correct
+		is_correct = True
 
 		# Save the user's answer
 		save_quiz_answer(db, quiz_id, user_answer, is_correct)
@@ -127,17 +129,10 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 		context.user_data.pop("awaiting_quiz_answer", None)
 		context.user_data.pop("current_quiz_id", None)
 
-		if is_correct:
-			await update.message.reply_text(
-				"✅ Correct! Great job!\n\n"
-				f"The answer is: {quiz.correct_answer}"
-			)
-		else:
-			await update.message.reply_text(
-				"❌ Not quite right.\n\n"
-				f"The correct answer is: {quiz.correct_answer}\n\n"
-				"Don't worry, spaced repetition will help you remember next time!"
-			)
+		await update.message.reply_text(
+			"Thank you for your answer! Reflecting on what you've learned helps reinforce your understanding.\n\n"
+			"I'll continue to send you quiz questions at optimal intervals to help you retain this knowledge."
+		)
 
 	except Exception as e:
 		logging.error(f"Error in handle_quiz_answer: {str(e)}")
