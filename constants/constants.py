@@ -1,4 +1,3 @@
-# constants/constants.py - UPDATED
 import os
 from dotenv import load_dotenv
 import logging
@@ -33,10 +32,30 @@ LOGGING_CONFIG = {
 # Bot and API tokens
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GENAI_API_KEY = os.getenv("GOOGLE_API_KEY")  # Changed to match .env file
+
+# LLM Configuration
+GEMINI_MODEL_NAME = "gemini-pro"  # Default model
+GEMINI_MAX_TOKENS = 8192  # Maximum token count for Gemini Pro
+GEMINI_TEMPERATURE = 0.2  # Lower temperature for more deterministic outputs
+
+# NLP Processing
+CHUNKING_SIZE = 4000  # Default size for text chunks
+CHAPTER_MIN_LENGTH = 1000  # Minimum length to consider as a chapter
+CHAPTER_MAX_LENGTH = 30000  # Maximum length for a chapter before splitting
+
+# Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Spaced Repetition Intervals (in days)
+SPACED_REPETITION_INTERVALS = {
+	"SUMMARY": [1, 3, 7, 30],  # Days to send summary reminders
+	"QUIZ": [2, 5, 14],         # Days to send quiz questions
+	"TEACHING": [4, 10, 21]     # Days to send teaching prompts
+}
 
 # Log configuration
 logging.info(f"Database URL: {DATABASE_URL}")
 logging.info(f"Logging level: {os.getenv('LOG_LEVEL', 'INFO')}")
 logging.info(f"Google API key set: {'Yes' if GENAI_API_KEY else 'No'}")
 logging.info(f"Telegram token set: {'Yes' if TELEGRAM_BOT_TOKEN else 'No'}")
+logging.info(f"Using Gemini model: {GEMINI_MODEL_NAME}")
