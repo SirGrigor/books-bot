@@ -1,4 +1,4 @@
-# app/controllers/start.py - FULLY UPDATED
+# app/controllers/start.py
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -26,10 +26,10 @@ class StartController:
 				"Most people forget 90% of what they read within weeks. This bot helps you remember key insights from books using AI and spaced repetition.\n\n"
 				"Here's how it works:\n"
 				"1️⃣ Pick a book from our curated list or add your own\n"
-				"2️⃣ Get an AI-generated summary of the key insights\n"
-				"3️⃣ Receive spaced repetition reminders to reinforce your learning\n"
-				"4️⃣ Test your knowledge with quizzes and teaching moments\n"
-				"5️⃣ Track your retention progress over time\n\n"
+				"2️⃣ Upload the book file (PDF, EPUB, or FB2 format)\n"
+				"3️⃣ Get AI-generated chapter summaries\n"
+				"4️⃣ Receive spaced repetition reminders to reinforce your learning\n"
+				"5️⃣ Test your knowledge with quizzes and teaching moments\n\n"
 				"Let's get started! Use /selectbook to choose a book or see all commands with /help."
 			)
 
@@ -56,6 +56,7 @@ class StartController:
 	async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 		"""
 		Displays a help message with all available commands.
+		Updated to include the new viewsummary command and better explanations.
 		"""
 		try:
 			help_text = (
@@ -69,17 +70,19 @@ class StartController:
 				"/addbook - Add a custom book by title\n\n"
 
 				"Learning Features:\n"
-				"/summary - Get or view a book summary\n"
+				"/viewsummary - View summaries of your selected book's chapters\n"
+				"/summary - Summarize any text you send (not related to books)\n"
 				"/quiz - Test your knowledge with quiz questions\n"
 				"/teach - Practice explaining concepts in your own words\n"
 				"/progress - View your reading and retention statistics\n\n"
 
 				"How to Use:\n"
-				"1. Start by selecting a book with /selectbook\n"
-				"2. Read the AI-generated summary\n"
-				"3. The bot will automatically send you reminders at optimal intervals\n"
-				"4. Use /quiz and /teach to actively reinforce your learning\n"
-				"5. Track your progress with /progress\n\n"
+				"1. Select a book with /selectbook or add your own with /addbook\n"
+				"2. Upload the book file (PDF, EPUB, FB2) to get detailed chapter summaries\n"
+				"3. Use /viewsummary to browse through chapter summaries\n"
+				"4. The bot will automatically send you reminders at optimal intervals\n"
+				"5. Use /quiz and /teach to actively reinforce your learning\n"
+				"6. Track your progress with /progress\n\n"
 
 				"Remember: Active engagement with the material helps retention!"
 			)
@@ -116,16 +119,18 @@ class StartController:
 					"/selectbook - Choose from our curated list of books\n"
 					"/addbook - Add a custom book by title\n\n"
 					"Learning Features:\n"
-					"/summary - Get or view a book summary\n"
+					"/viewsummary - View summaries of your selected book's chapters\n"
+					"/summary - Summarize any text you send (not related to books)\n"
 					"/quiz - Test your knowledge with quiz questions\n"
 					"/teach - Practice explaining concepts in your own words\n"
 					"/progress - View your reading and retention statistics\n\n"
 					"How to Use:\n"
-					"1. Start by selecting a book with /selectbook\n"
-					"2. Read the AI-generated summary\n"
-					"3. The bot will automatically send you reminders at optimal intervals\n"
-					"4. Use /quiz and /teach to actively reinforce your learning\n"
-					"5. Track your progress with /progress\n\n"
+					"1. Select a book with /selectbook or add your own with /addbook\n"
+					"2. Upload the book file (PDF, EPUB, FB2) to get detailed chapter summaries\n"
+					"3. Use /viewsummary to browse through chapter summaries\n"
+					"4. The bot will automatically send you reminders at optimal intervals\n"
+					"5. Use /quiz and /teach to actively reinforce your learning\n"
+					"6. Track your progress with /progress\n\n"
 					"Remember: Active engagement with the material helps retention!"
 				)
 				await query.edit_message_text(help_text)

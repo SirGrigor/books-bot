@@ -1,4 +1,3 @@
-# app/controllers/book_selection.py - FIXED
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -87,9 +86,15 @@ class BookSelectionController:
 				# Schedule the spaced repetition reminders
 				await schedule_spaced_repetition(context, user_id, book.title)
 
+				# Improved user guidance with clearer next steps
 				await query.edit_message_text(
-					f"Great choice! You've selected '{book.title}'. "
-					f"I'll send you a summary soon, followed by reminders to help you remember the key concepts."
+					f"📚 Great choice! You've selected '{book.title}'.\n\n"
+					f"I've created a basic summary and set up spaced repetition reminders to help you remember the key concepts.\n\n"
+					f"📝 For detailed chapter summaries, please upload the actual book file (PDF, EPUB, or FB2 format).\n\n"
+					f"You can use:\n"
+					f"• /viewsummary - View the current summary\n"
+					f"• /quiz - Test your knowledge\n"
+					f"• /progress - Track your reading progress"
 				)
 
 			except Exception as e:
@@ -174,9 +179,15 @@ class BookSelectionController:
 				# Remove the awaiting flag
 				context.user_data.pop("awaiting_book_title")
 
+				# Improved user guidance with upload instructions
 				await update.message.reply_text(
-					f"I've added '{book_title}' to your reading list. "
-					f"I'll send you a summary soon, followed by reminders to help you remember the key concepts."
+					f"📚 I've added '{book_title}' to your reading list.\n\n"
+					f"I've set up spaced repetition reminders to help you remember key concepts.\n\n"
+					f"📝 For detailed chapter summaries, please upload the book file by:\n"
+					f"1. Clicking the attachment (📎) icon\n"
+					f"2. Selecting 'File'\n"
+					f"3. Uploading your book in PDF, EPUB, or FB2 format\n\n"
+					f"You can use /viewsummary at any time to see the current summary."
 				)
 
 			except Exception as e:

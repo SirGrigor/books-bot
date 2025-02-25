@@ -1,4 +1,4 @@
-# main.py - FIXED
+# main.py
 import logging
 import os
 
@@ -6,6 +6,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from app.controllers.start import StartController
 from app.controllers.summary_text import summarize_text_command
 from app.controllers.summary_book import summarize_book_command
+from app.controllers.summary_view import view_book_summary_command, handle_summary_selection
 from app.controllers.book_selection import BookSelectionController
 from app.controllers.quiz import QuizController
 from app.controllers.teaching import TeachingController
@@ -60,7 +61,11 @@ def main():
 	application.add_handler(CommandHandler("help", start_controller.help))
 	application.add_handler(CommandHandler("selectbook", book_selection_controller.select_book))
 	application.add_handler(CommandHandler("addbook", book_selection_controller.add_custom_book_command))
-	application.add_handler(CommandHandler("summary", summarize_text_command))
+
+	# Modified command handlers - separate text summarization from book summary viewing
+	application.add_handler(CommandHandler("summary", summarize_text_command))  # Keep for text summarization
+	application.add_handler(CommandHandler("viewsummary", view_book_summary_command))  # New command for viewing book summaries
+
 	application.add_handler(CommandHandler("quiz", quiz_controller.send_quiz))
 	application.add_handler(CommandHandler("teach", teaching_controller.send_teaching_prompt))
 	application.add_handler(CommandHandler("progress", progress_controller.show_progress))
@@ -72,6 +77,7 @@ def main():
 	application.add_handler(CallbackQueryHandler(quiz_controller.handle_book_selection, pattern=r"^quiz_book_"))
 	application.add_handler(CallbackQueryHandler(teaching_controller.handle_book_selection, pattern=r"^teach_book_"))
 	application.add_handler(CallbackQueryHandler(progress_controller.mark_book_completed, pattern=r"^complete_book_"))
+	application.add_handler(CallbackQueryHandler(handle_summary_selection, pattern=r"^summary_"))  # Add handler for summary selection
 
 	# Add message handlers
 	logging.info("Adding message handlers...")
