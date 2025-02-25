@@ -3,6 +3,8 @@ import os
 import logging
 import google.generativeai as genai
 from constants.constants import GENAI_API_KEY
+import json
+import re
 
 # Initialize the Gemini client
 genai.configure(api_key=GENAI_API_KEY)
@@ -20,26 +22,17 @@ def generate_quiz_questions(text, num_questions=3):
         For each question, provide the correct answer.
         Format your response as a JSON array of objects, where each object has 'question' and 'answer' fields.
         
-        Text: {text}
+        Text: {text[:1500]}  # Limit text to avoid hitting model token limits
         """
 
 		response = model.generate_content(prompt)
 		response_text = response.text
 
 		# Parse the response to extract questions and answers
-		# This is a simplified approach - in a real implementation,
-		# you would parse the JSON properly
-
-		# For demonstration purposes, let's return a default set of questions
-		# In a real implementation, you would parse the AI response
-
 		questions = []
 
 		try:
 			# Try to parse the JSON response
-			import json
-			import re
-
 			# Look for JSON pattern in the response
 			json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
 			if json_match:
@@ -74,10 +67,35 @@ def generate_quiz_questions(text, num_questions=3):
 		except Exception as parsing_error:
 			logging.error(f"Error parsing quiz questions: {str(parsing_error)}")
 
-		# If all parsing failed, create a default question
+		# If all parsing failed, create default questions based on text
 		if not questions:
-			default_question = "What is one of the key concepts discussed in this text?"
-			default_answer = "This question requires reflection on the key concepts in the text."
-			questions = [{"question": default_question, "answer": default_answer}]
+			# Extract some words to create basic questions
+			words = re.findall(r'\b\w{4,}\b', text)
+			important_words = [word for word in words if word.lower() not in
+							   ['this', 'that', 'there', 'their', 'about', 'would', 'could', 'should']]
+
+			# Take a few unique words for questions
+			unique_words = list(set(important_words))[:3]
+
+			for word in unique_words:
+				questions.append({
+					"question": f"What is the significance of '{word}' in this text?",
+					"answer": f"This requires reflecting on how '{word}' is used in the context of the text."
+				})
+
+			# If still no questions, add one generic question
+			if not questions:
+				questions = [{
+					"question": "What is one of the key concepts discussed in this text?",
+					"answer": "This question requires reflection on the key concepts in the text."
+				}]
 
 		return questions
+
+	except Exception as e:
+		logging.error(f"Error generating quiz questions: {str(e)}")
+		# Return a fallback question if everything fails
+		return [{
+			"question": "What was the main idea presented in this text?",
+			"answer": "The main idea relates to the central concept discussed in the text."
+		}]

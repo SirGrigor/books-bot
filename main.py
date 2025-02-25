@@ -13,7 +13,7 @@ from app.controllers.progress import ProgressController
 from app.services.teaching_service import generate_discussion_prompt
 from app.services.reminders_service import process_due_reminders
 from app.utils.logging_config import configure_logging
-from migrations import run_migrations
+from app.database.init_db import init_database
 
 # Configure logging
 configure_logging()
@@ -21,11 +21,11 @@ configure_logging()
 logging.info("Starting bot...")
 
 def main():
-	# Run database migrations
+	# Initialize the database
 	try:
-		run_migrations()
+		init_database()
 	except Exception as e:
-		logging.error(f"Error running migrations: {str(e)}")
+		logging.error(f"Error initializing database: {str(e)}")
 		# Continue anyway, as the basic functionality should still work
 
 	# Initialize the bot
@@ -50,8 +50,11 @@ def main():
 	application.add_handler(CommandHandler("progress", progress_controller.show_progress))
 
 	# Add callback query handler for inline keyboards
+	application.add_handler(CallbackQueryHandler(start_controller.handle_menu_callback, pattern=r"^menu_"))
 	application.add_handler(CallbackQueryHandler(book_selection_controller.handle_book_selection, pattern=r"^book_"))
-	application.add_handler(CallbackQueryHandler(book_selection_controller.handle_book_selection, pattern=r"^add_custom_book$"))
+	application.add_handler(CallbackQueryHandler(quiz_controller.handle_book_selection, pattern=r"^quiz_book_"))
+	application.add_handler(CallbackQueryHandler(teaching_controller.handle_book_selection, pattern=r"^teach_book_"))
+	application.add_handler(CallbackQueryHandler(progress_controller.mark_book_completed, pattern=r"^complete_book_"))
 
 	# Add message handlers
 	# Only parse non-command text messages for summarizing when not in a specific context
